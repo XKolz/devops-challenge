@@ -21,7 +21,7 @@ pipeline {
                       -v "$(pwd)/app:/app" \
                       -w /app \
                       python:3.11-slim \
-                      sh -c "pip install --quiet -r requirements.txt pytest httpx && pytest tests/ -v"
+                      sh -c 'pip install --quiet -r requirements.txt pytest httpx && pytest tests/ -v'
                 '''
             }
         }
