@@ -1,0 +1,104 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  AWS_REGION: us-east-1
+  # Must match the ECR repository name created by Terraform:
+  #   "${var.app_name}-${var.environment}" → devops-challenge-prod
+  ECR_REPOSITORY: devops-challenge-prod
+
+jobs:
+  build-and-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r app/requirements.txt pytest httpx
+
+      - name: Run tests
+        run: pytest app/tests/ -v
+
+      - name: Build Docker image (smoke test)
+        run: docker build -t app:${{ github.sha }} ./app
+
+  push-to-ecr:
+    name: Push to ECR
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    outputs:
+      image: ${{ steps.build-push.outputs.image }}
+      registry: ${{ steps.login-ecr.outputs.registry }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, tag, and push image to ECR
+        id: build-push
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:${{ github.sha }} ./app
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:${{ github.sha }} \
+            $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:${{ github.sha }}
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:${{ github.sha }}" >> $GITHUB_OUTPUT
+
+  deploy:
+    name: Deploy to EC2
+    runs-on: ubuntu-latest
+    needs: push-to-ecr
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ec2-user
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            # Authenticate Docker to ECR using the EC2 instance role (no stored credentials)
+            aws ecr get-login-password --region ${{ env.AWS_REGION }} | \
+              docker login --username AWS --password-stdin \
+              ${{ needs.push-to-ecr.outputs.registry }}
+
+            # Pull the image built from this exact commit
+            docker pull ${{ needs.push-to-ecr.outputs.image }}
+
+            # Zero-downtime swap: stop old container, start new one
+            docker stop app 2>/dev/null || true
+            docker rm   app 2>/dev/null || true
+            docker run -d \
+              --name app \
+              --restart unless-stopped \
+              -p 80:8000 \
+              ${{ needs.push-to-ecr.outputs.image }}
+
+            # Clean up dangling images to preserve disk space
+            docker image prune -f
