@@ -19,6 +19,7 @@ nav:
   - Deployment: deployment.md
   - Infrastructure: infrastructure.md
   - CI/CD Pipeline: cicd.md
+  - Jenkins Setup: jenkins.md
   - API Reference: api.md
 
 markdown_extensions:
