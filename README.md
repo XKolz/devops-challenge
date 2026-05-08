@@ -1,6 +1,6 @@
 # DevOps Challenge — FastAPI on AWS
 
-A production-ready FastAPI application deployed to AWS EC2 via Docker, provisioned entirely with Terraform, and automated end-to-end with GitHub Actions.
+A production-ready FastAPI application deployed to AWS EC2 via Docker, provisioned entirely with Terraform, and automated end-to-end with GitHub Actions..
 
 ---
 
@@ -27,17 +27,17 @@ A production-ready FastAPI application deployed to AWS EC2 via Docker, provision
 
 **AWS resources (all Terraform-managed):**
 
-| Resource | Purpose |
-|----------|---------|
-| VPC (10.0.0.0/16) | Isolated network |
-| Public subnet + IGW | Internet-accessible host |
-| Route table | Routes 0.0.0.0/0 → IGW |
-| EC2 t3.micro | Runs the Docker container |
-| Security group | Allows inbound 22/80/443, all egress |
-| IAM role + instance profile | EC2 pulls from ECR without stored credentials |
-| ECR repository | Private Docker image registry |
-| CloudWatch log group | `/aws/ec2/devops-challenge-prod`, 7-day retention |
-| CloudWatch CPU alarm | Fires when CPU > 80% for ≥ 4 minutes |
+| Resource                    | Purpose                                           |
+| --------------------------- | ------------------------------------------------- |
+| VPC (10.0.0.0/16)           | Isolated network                                  |
+| Public subnet + IGW         | Internet-accessible host                          |
+| Route table                 | Routes 0.0.0.0/0 → IGW                            |
+| EC2 t3.micro                | Runs the Docker container                         |
+| Security group              | Allows inbound 22/80/443, all egress              |
+| IAM role + instance profile | EC2 pulls from ECR without stored credentials     |
+| ECR repository              | Private Docker image registry                     |
+| CloudWatch log group        | `/aws/ec2/devops-challenge-prod`, 7-day retention |
+| CloudWatch CPU alarm        | Fires when CPU > 80% for ≥ 4 minutes              |
 
 ---
 
@@ -75,12 +75,12 @@ The API is available at `http://localhost:8000`. Interactive docs at `http://loc
 
 **Endpoints:**
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/health` | Returns `{"status": "healthy"}` |
-| `GET` | `/items` | List all items |
-| `POST` | `/items` | Create an item (`name`, `price` required; `description` optional) |
-| `GET` | `/items/{id}` | Fetch a single item by UUID |
+| Method | Path          | Description                                                       |
+| ------ | ------------- | ----------------------------------------------------------------- |
+| `GET`  | `/health`     | Returns `{"status": "healthy"}`                                   |
+| `GET`  | `/items`      | List all items                                                    |
+| `POST` | `/items`      | Create an item (`name`, `price` required; `description` optional) |
+| `GET`  | `/items/{id}` | Fetch a single item by UUID                                       |
 
 ---
 
@@ -113,12 +113,12 @@ vpc_id             = "vpc-abc123"
 
 Repository → Settings → Secrets and variables → Actions → New repository secret:
 
-| Secret | Value |
-|--------|-------|
-| `AWS_ACCESS_KEY_ID` | IAM user access key with ECR push permissions |
-| `AWS_SECRET_ACCESS_KEY` | IAM user secret key |
-| `EC2_HOST` | `ec2_public_ip` from Terraform output |
-| `EC2_SSH_KEY` | Contents of the `.pem` private key file |
+| Secret                  | Value                                         |
+| ----------------------- | --------------------------------------------- |
+| `AWS_ACCESS_KEY_ID`     | IAM user access key with ECR push permissions |
+| `AWS_SECRET_ACCESS_KEY` | IAM user secret key                           |
+| `EC2_HOST`              | `ec2_public_ip` from Terraform output         |
+| `EC2_SSH_KEY`           | Contents of the `.pem` private key file       |
 
 Update `ECR_REPOSITORY` at the top of `.github/workflows/ci-cd.yml` if you changed `app_name` or `environment` variables from their defaults (`devops-challenge-prod`).
 
@@ -169,13 +169,13 @@ curl http://<EC2_HOST>/health
 
 ## Limitations
 
-| Area | Current state | Production path |
-|------|--------------|-----------------|
-| High availability | Single EC2 instance — one point of failure | Auto Scaling Group behind an Application Load Balancer |
-| HTTPS | Port 443 open but no TLS termination | ACM certificate on an ALB, or nginx + Certbot on the instance |
-| Terraform state | Local `terraform.tfstate` | S3 backend with DynamoDB state locking |
-| SSH to production | Deploy job SSHes directly on port 22 | AWS SSM Session Manager (no open port 22 required) |
-| Data persistence | Items lost on container restart | Amazon RDS or DynamoDB |
-| Security group | Port 22 open to 0.0.0.0/0 | Restrict to a known CIDR or remove in favour of SSM |
-| Multi-AZ | Single availability zone | Subnets in ≥ 2 AZs required for production resilience |
-| Observability | Basic CPU alarm only | CloudWatch agent + application-level metrics, structured logging |
+| Area              | Current state                              | Production path                                                  |
+| ----------------- | ------------------------------------------ | ---------------------------------------------------------------- |
+| High availability | Single EC2 instance — one point of failure | Auto Scaling Group behind an Application Load Balancer           |
+| HTTPS             | Port 443 open but no TLS termination       | ACM certificate on an ALB, or nginx + Certbot on the instance    |
+| Terraform state   | Local `terraform.tfstate`                  | S3 backend with DynamoDB state locking                           |
+| SSH to production | Deploy job SSHes directly on port 22       | AWS SSM Session Manager (no open port 22 required)               |
+| Data persistence  | Items lost on container restart            | Amazon RDS or DynamoDB                                           |
+| Security group    | Port 22 open to 0.0.0.0/0                  | Restrict to a known CIDR or remove in favour of SSM              |
+| Multi-AZ          | Single availability zone                   | Subnets in ≥ 2 AZs required for production resilience            |
+| Observability     | Basic CPU alarm only                       | CloudWatch agent + application-level metrics, structured logging |
