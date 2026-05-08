@@ -17,8 +17,11 @@ pipeline {
         stage('Test') {
             steps {
                 sh '''
-                    python3 -m pip install --quiet -r app/requirements.txt pytest httpx
-                    pytest app/tests/ -v
+                    docker run --rm \
+                      -v "$(pwd)/app:/app" \
+                      -w /app \
+                      python:3.11-slim \
+                      sh -c "pip install --quiet -r requirements.txt pytest httpx && pytest tests/ -v"
                 '''
             }
         }
